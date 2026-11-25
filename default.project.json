@@ -1,0 +1,34 @@
+{
+  "name": "ZombieGame",
+  "tree": {
+    "$className": "DataModel",
+
+    "ServerStorage": {
+      "NotShared": {
+        "$path": "src/ServerStorage"
+      }
+    },
+
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/ReplicatedStorage"
+      }
+    },
+
+    "ServerScriptService": {
+      "Server": {
+        "$className": "Folder",
+        "$path": "src/ServerScriptService"
+      }
+    },
+
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": {
+          "$className": "Folder",
+          "$path": "src/StarterPlayerScripts"
+        }
+      }
+    }
+  }
+}
