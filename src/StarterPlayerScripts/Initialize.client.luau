@@ -1,25 +1,25 @@
-repeat
-	task.wait()
-until game:IsLoaded()
-
 local cont = script.Parent.Controllers
+
+print("INITIALIZED")
 
 for _, module in cont:GetChildren() do
 	if module:IsA("ModuleScript") then
-		local err, req = pcall(function(...)
-			return require(module)
+		task.spawn(function()
+			local err, req = pcall(function(...)
+				return require(module)
+			end)
+			if not err then
+				print(req)
+				return
+			elseif not req then
+				return
+			end
+			if typeof(req) == "table" and req.Init then
+				req.Init()
+			elseif typeof(req) == "function" then
+				req()
+			end
 		end)
-		if not err then
-			print(req)
-			continue
-		elseif not req then
-			continue
-		end
-		if typeof(req) == "table" and req.Init then
-			task.spawn(req.Init)
-		elseif typeof(req) == "function" then
-			task.spawn(req)
-		end
 	end
 end
 
@@ -67,6 +67,5 @@ end)
 local remoteFunction: RemoteFunction = replicatedStorage.Remotes:WaitForChild("PlayerGetMouse")
 
 remoteFunction.OnClientInvoke = function()
-	print("Fired!")
 	return mouse.Hit.Position
 end

@@ -31,7 +31,7 @@ local path = SimplePath.new(zombie, {
 
 hrs.Anchored = true
 
-function playSound(sound : Sound, part : BasePart)
+function playSound(sound: Sound, part: BasePart)
 	local clone = sound:Clone()
 	clone.Parent = part
 	clone:Play()
@@ -52,7 +52,7 @@ local sounds = {}
 
 for name, id in pairs(soundIds) do
 	local newSound = Instance.new("Sound")
-	newSound.SoundId = idk..id
+	newSound.SoundId = idk .. id
 	sounds[name] = newSound
 end
 
@@ -176,7 +176,46 @@ function attack(char)
 	targetHumanoid:TakeDamage(attack_damage)
 end
 
+local stop = false
+
+humanoid.Died:Connect(function()
+	if stop then return end
+	stop = true
+	for _, part: BasePart in pairs(zombie:GetDescendants()) do
+		if not part:IsA("BasePart") then
+			continue
+		end
+		part.Anchored = true
+		part.Parent = workspace
+		part.CanCollide = true
+		part:BreakJoints()
+		local vel = Instance.new("BodyVelocity")
+		vel.Parent = part
+		vel.MaxForce = Vector3.one * math.huge
+		vel.Velocity = Vector3.new(math.random(-20, 20), math.random(30, 60), math.random(-20, 20))
+		local angularVelocity = Instance.new("BodyAngularVelocity")
+		angularVelocity.MaxTorque = Vector3.one * math.huge
+		angularVelocity.AngularVelocity = Vector3.new(math.random(-20, 20), math.random(15, 45), math.random(-20, 20))
+		part.Anchored = false
+		task.delay(.2, function()
+			angularVelocity:Destroy()
+			vel:Destroy()
+		end)
+		task.delay(3, function()
+			for i = 1, 20 do
+				part.Transparency += .05
+				task.wait(.05)
+			end
+			part:Destroy()
+		end)
+	end
+end)
+
 while task.wait(_G.Tickspeed) do
+	if stop then
+		path:Stop()
+		break
+	end
 	local rayPos = hrs.Position
 	local rayDir = hrs.CFrame.LookVector * 2
 	local raycastParams = RaycastParams.new()

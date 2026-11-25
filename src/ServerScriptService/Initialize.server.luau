@@ -3,13 +3,22 @@ _G.Tickspeed = 0.125
 
 for _, module in cont:GetChildren() do
 	if module:IsA("ModuleScript") then
-		local req = require(module)
-        if not req then continue end
-		if typeof(req) == "table" and req.Init then
-			task.spawn(req.Init)
-		elseif typeof(req) == "function" then
-            task.spawn(req)
-		end
+		task.spawn(function()
+			local err, req = pcall(function(...)
+				return require(module)
+			end)
+			if not err then
+				print(req)
+				return
+			elseif not req then
+				return
+			end
+			if typeof(req) == "table" and req.Init then
+				req.Init()
+			elseif typeof(req) == "function" then
+				req()
+			end
+		end)
 	end
 end
 
