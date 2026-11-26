@@ -1,6 +1,8 @@
 --!nocheck
 
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
+const TweenService = game:GetService("TweenService")
+const Ragdoll = require(ReplicatedStorage.Shared.Libs.Ragdoll)
 const SimplePath = require(ReplicatedStorage.Shared.Libs.SimplePath)
 const DistanceUtils = require(ReplicatedStorage.Shared.Modules.DistanceUtils)
 
@@ -12,9 +14,15 @@ local db = false
 
 local lastPosition = nil
 local zombie = script.Parent
+zombie.Parent = workspace.Enemies
+local find
+repeat
+	task.wait()
+	find = zombie:FindFirstChild("EnemyStatus")
+until find
+local status = require(find)
 local hrs: BasePart = zombie.HumanoidRootPart
 local humanoid: Humanoid = zombie.Humanoid
-zombie.Parent = workspace.Enemies
 
 for _, part: BasePart in pairs(zombie:GetDescendants()) do
 	if part:IsA("BasePart") then
@@ -120,7 +128,7 @@ end)
 local randomRiseAnim: AnimationTrack = loadedRiseAnimations[math.random(1, #riseAnimationIds)]
 randomRiseAnim.Priority = Enum.AnimationPriority.Action4
 randomRiseAnim:Play()
-randomRiseAnim.Ended:Wait()
+task.wait(randomRiseAnim.Length)
 
 hrs.Anchored = false
 
@@ -133,6 +141,12 @@ local limbPriority = {
 }
 
 function attack(char)
+	if not (status.Health["Right Arm"] or status.Health["Left Arm"]) then
+		return
+	end
+	local Attack: AnimationTrack = loadedAnimations["Attack"]
+	Attack.Priority = Enum.AnimationPriority.Action
+	Attack:Play()
 	local targetHumanoid: Humanoid = char:FindFirstChildOfClass("Humanoid")
 	if not targetHumanoid then
 		return
@@ -145,11 +159,11 @@ function attack(char)
 			break
 		end
 	end
-	if highestPriorityLimb then
+	if highestPriorityLimb and status.Health["Head"] then
 		highestPriorityLimb:BreakJoints()
 		local clone = highestPriorityLimb:Clone()
 		highestPriorityLimb:Destroy()
-		clone.Parent = workspace
+		clone.Parent = workspace.Scrap
 		clone.CanCollide = true
 		local bodyVel = Instance.new("BodyVelocity", clone)
 		bodyVel.MaxForce = Vector3.one * math.huge
@@ -173,48 +187,61 @@ function attack(char)
 		playSound(sounds["Snap"], clone)
 	end
 	playSound(sounds["Attack"], hrs)
+	local damage = attack_damage
+	if not status.Health["Right Arm"] or not status.Health["Left Arm"] then
+		damage /= 2
+	end
+	if not status.Health["Head"] then
+		damage /= 3
+	end
 	targetHumanoid:TakeDamage(attack_damage)
 end
 
 local stop = false
 
-humanoid.Died:Connect(function()
-	if stop then return end
+humanoid.HealthChanged:Connect(function(newHealth: number)
+	if newHealth <= 0 then
+		humanoid.MaxHealth = math.huge
+		humanoid.Health = humanoid.MaxHealth
+	else
+		return
+	end
 	stop = true
-	for _, part: BasePart in pairs(zombie:GetDescendants()) do
-		if not part:IsA("BasePart") then
-			continue
-		end
-		part.Anchored = true
-		part.Parent = workspace
-		part.CanCollide = true
-		part:BreakJoints()
-		local vel = Instance.new("BodyVelocity")
-		vel.Parent = part
-		vel.MaxForce = Vector3.one * math.huge
-		vel.Velocity = Vector3.new(math.random(-20, 20), math.random(30, 60), math.random(-20, 20))
-		local angularVelocity = Instance.new("BodyAngularVelocity")
-		angularVelocity.MaxTorque = Vector3.one * math.huge
-		angularVelocity.AngularVelocity = Vector3.new(math.random(-20, 20), math.random(15, 45), math.random(-20, 20))
-		part.Anchored = false
-		task.delay(.2, function()
-			angularVelocity:Destroy()
-			vel:Destroy()
-		end)
-		task.delay(3, function()
-			for i = 1, 20 do
-				part.Transparency += .05
-				task.wait(.05)
+	status.IFrames = true
+	Ragdoll.ragdoll(zombie)
+	local bodyVel = Instance.new("BodyVelocity", hrs)
+	bodyVel.MaxForce = Vector3.one * math.huge
+	bodyVel.Velocity = Vector3.new(math.random(-20, 20), 45, math.random(-20, 20))
+	task.delay(0.2, function()
+		bodyVel:Destroy()
+	end)
+	task.wait(3)
+	if status.Health["Head"] then
+		Ragdoll.disableRagdoll(zombie)
+		stop = false
+		status.IFrames = false
+		humanoid.MaxHealth = status.Health.Max
+		humanoid.Health = humanoid.MaxHealth
+	else
+		for _, part in pairs(zombie:GetDescendants()) do
+			if part:IsA("BasePart") then
+				task.spawn(function()
+					for i = 1, 20 do
+						part.Transparency += 0.05
+						task.wait(0.05)
+					end
+					humanoid.Health = -1
+				end)
+				task.wait(2)
+				zombie:Destroy()
 			end
-			part:Destroy()
-		end)
+		end
 	end
 end)
 
 while task.wait(_G.Tickspeed) do
 	if stop then
-		path:Stop()
-		break
+		continue
 	end
 	local rayPos = hrs.Position
 	local rayDir = hrs.CFrame.LookVector * 2
@@ -244,10 +271,18 @@ while task.wait(_G.Tickspeed) do
 		task.delay(attack_cooldown, function()
 			db = false
 		end)
-		local Attack: AnimationTrack = loadedAnimations["Attack"]
-		Attack.Priority = Enum.AnimationPriority.Action
-		Attack:Play()
 		attack(char)
+	end
+
+	if not status.Health["Head"] then
+		local randomPosition = targetHumanoidRootPart.Position
+			+ Vector3.new(
+				math.random(-humanoid.WalkSpeed, humanoid.WalkSpeed),
+				math.random(-humanoid.WalkSpeed, humanoid.WalkSpeed),
+				math.random(-humanoid.WalkSpeed, humanoid.WalkSpeed)
+			)
+		humanoid:MoveTo(randomPosition)
+		continue
 	end
 
 	if lastPosition ~= targetHumanoidRootPart.Position then

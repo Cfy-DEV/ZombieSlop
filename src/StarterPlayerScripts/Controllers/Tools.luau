@@ -1,5 +1,8 @@
+const ContextActionService = game:GetService("ContextActionService")
 const Players = game:GetService("Players")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
+const UserInputService = game:GetService("UserInputService")
+const ItensInfo = require(ReplicatedStorage.Shared.Modules.ItensInfo)
 local sharedFolder = ReplicatedStorage.Shared
 local t = {}
 
@@ -23,6 +26,29 @@ for _, inst in pairs(workspace:GetDescendants()) do
 	end
 end
 
+local currentItemInfo : nil | {Cooldown : number}
+local equippedTool : nil | Tool
+local holdingMouse = false
+local db = {}
+
+ContextActionService:BindAction("UseTool", function(_, inputState: Enum.UserInputState, _)
+	if inputState == Enum.UserInputState.Begin then
+		holdingMouse = true
+		while task.wait() and holdingMouse do
+			print(equippedTool, ItensInfo)
+			if equippedTool ~= nil and currentItemInfo ~= nil and not db[equippedTool] then
+				db[equippedTool] = true
+				equippedTool:Activate()
+				task.delay(currentItemInfo.Cooldown, function()
+					db[equippedTool] = false
+				end)
+			end
+		end
+	elseif inputState == Enum.UserInputState.End or inputState == Enum.UserInputState.Cancel then
+		holdingMouse = false
+	end
+end, true, Enum.UserInputType.MouseButton1, Enum.KeyCode.ButtonX)
+
 return function()
 	workspace.DescendantAdded:Connect(initTool)
 
@@ -30,6 +56,7 @@ return function()
 	local mouse = lp:GetMouse()
 
 	while true do
+		equippedTool = nil
 		local char
 		repeat
 			char = lp.Character
@@ -46,17 +73,21 @@ return function()
 
 		local lastTick = math.min(tick(), 1)
 
-		while char do
+		while char and not (humanoid.Health <= 0) do
 			task.wait()
 			local deltaTime = tick() - lastTick
 			lastTick = tick()
-			local tool = char:FindFirstChildOfClass("Tool")
+			local tool : Tool = char:FindFirstChildOfClass("Tool")
 			if not tool then
+				equippedTool = nil
 				humanoid.AutoRotate = true
 				continue
 			end
-
+			equippedTool = tool
+			currentItemInfo = ItensInfo[tool.Name]
 			humanoid.AutoRotate = false
+
+			tool.ManualActivationOnly = true
 
 			local pos1 = hrp.Position
 			local mousePos = mouse.Hit.Position

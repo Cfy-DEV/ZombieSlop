@@ -5,6 +5,7 @@ return {
         Damage = 10,
         Cooldown = .1,
         Range = 200,
+        Pierce = 2,
         MaxOffset = 5, -- max offset each 100 studs of distance.
     }
 }
